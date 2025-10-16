@@ -1,0 +1,46 @@
+# Build outputs
+*.bin
+*.img
+*.iso
+*.elf
+*.o
+*.a
+
+# Object files
+*.obj
+*.lst
+*.map
+*.sym
+
+# QEMU files
+*.qcow2
+*.vmdk
+*.vdi
+*qemu*
+
+# Build directories
+/build/
+/obj/
+/bin/
+/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary
+/tmp/
+/temp/
+*.tmp
+*.log
+
+# Configuration
+.env
+local.*
