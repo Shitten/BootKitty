@@ -1,4 +1,5 @@
 [org 0x7C00]                  ;initialzation of bios (non negoiable since some ibm enginners chosed this)
+[bits 16]
  mov si,msg                   ;gets the msg and copies it to si(cant change register name since 16 bit)
  .loop:
  mov al, [si]                 ;al is the printf but primitive and dereferences si(pointers 101)
@@ -30,7 +31,7 @@ jmp .loop1
 .hang:                       ;loops to halt the program once it finishes reading the message buffer
  jmp $
   msg db "BOOT KITTY",0x0D,0x0A,0 
-  output db "A3 gate activated",0x0D,0x0A,0
+  output db "A20 gate activated",0x0D,0x0A,0
 
   print0:
 mov si, output0
@@ -45,8 +46,40 @@ jmp .loop0
 .hang0:                       ;loops to halt the program once it finishes reading the message buffer
  jmp $
 
-  output0 db "A3 gate not activated",0
- 
+  output0 db "A20 gate not activated",0
+
+
+  gdt_start:
+  dq 0x0000000000000000
+  
+   gdt_code:
+   dw 0xFFFF
+   dw 0x0000
+   db 0x00
+   db 0x9A
+   db 0xCF
+   db 0x00  
+   
+
+   gdt_data:
+   dw 0xFFFF                    ; Limit 0-15
+    dw 0x0000                    ; Base 0-15
+    db 0x00                      ; Base 16-23  
+    db 0x92                      ; Access byte
+    db 0xCF                      ; Flags + Limit 16-19
+    db 0x00                      ; Base 24-31
+   gdt_end:
+    gdtr:
+    dw gdt_end - gdt_start - 1 
+    dd gdt_start
+
+    lgdt [gdtr]
+    mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
+or eax, 1        ; set bit 0 (the PE bit, “Protection Enable”)
+mov cr0, eax     ; write it back into CR0
+jmp 0x08:protected_mode_entry
+ [bits 32]
+protected_mode_entry:
  
 
  times 510 - ($-$$) db 0      ;just padding it to print 0 until it reach 510 bytes the last 2 bytes is for the signature for bios
