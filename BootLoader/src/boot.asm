@@ -29,9 +29,7 @@ mov ah,0x0E
 int 0x10
 jmp .loop1
 .hang:                       ;loops to halt the program once it finishes reading the message buffer
- jmp $
-  msg db "BOOT KITTY",0x0D,0x0A,0 
-  output db "A20 gate activated",0x0D,0x0A,0
+ jmp load_gdt
 
   print0:
 mov si, output0
@@ -46,9 +44,11 @@ jmp .loop0
 .hang0:                       ;loops to halt the program once it finishes reading the message buffer
  jmp $
 
+  msg db "BOOT KITTY",0x0D,0x0A,0 
+  output db "A20 gate activated",0x0D,0x0A,0
   output0 db "A20 gate not activated",0
 
-
+load_gdt:
   gdt_start:
   dq 0x0000000000000000
   
@@ -68,19 +68,45 @@ jmp .loop0
     db 0x92                      ; Access byte
     db 0xCF                      ; Flags + Limit 16-19
     db 0x00                      ; Base 24-31
+   
    gdt_end:
     gdtr:
     dw gdt_end - gdt_start - 1 
     dd gdt_start
+    
+    mov ah, 0x00       ; BIOS function: Set video mode
+    mov al, 0x03       ; Mode 03h: 80x25 text mode, VGA, 16 colors
+    int 0x10           ; Execute the command
 
+    cli
     lgdt [gdtr]
     mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
-or eax, 1        ; set bit 0 (the PE bit, “Protection Enable”)
+or eax, 1        ; set bit 0 (the PE bit, “Protectgiion Enable”)
 mov cr0, eax     ; write it back into CR0
 jmp 0x08:protected_mode_entry
  [bits 32]
 protected_mode_entry:
- 
+ mov ax,0x10
+ mov ds,ax
+ mov es,ax
+ mov ss,ax
+
+mov edi, 0xB8000
+mov si,msgss
+.loop3:
+mov al,[si]
+inc si
+or al,al
+jz .hang1
+mov ah,0x30
+mov [edi], ax
+add edi, 2
+jmp .loop3
+.hang1:
+jmp $
+
+msgss db "32 BIT",0
+
 
  times 510 - ($-$$) db 0      ;just padding it to print 0 until it reach 510 bytes the last 2 bytes is for the signature for bios
  dw 0xAA55                    ;this means this is a valid bootloader (non negotiable)
