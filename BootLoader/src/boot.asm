@@ -1,54 +1,41 @@
 [org 0x7C00]                  ;initialzation of bios (non negoiable since some ibm enginners chosed this)
 [bits 16]
- mov si,msg                   ;gets the msg and copies it to si(cant change register name since 16 bit)
- .loop:
- mov al, [si]                 ;al is the printf but primitive and dereferences si(pointers 101)
- or al,al                     ;fancy way of saying if msg == 0 then flags it with zero flag that activates the jz(yeah ik its implicit which is why i hate it)
- jz a20_activate
- inc si                       ;moves on to the next string ( can use lodsd but i dont like black boxes)
- mov ah,0x0E                  ;ah is the command of what the bios will do 0x0E means teletype mode (must use this so that the bios knows its printing before using al which is the printf itself)
- int 0x10                     ;fancy way to start the command in bios
- jmp .loop                    ;repeats back to the loop
+.start:
+cli
+xor ax,ax
+mov ds,ax
+mov es,ax
+mov ss,ax
+mov sp,0x7C00
+
+call a20_activate
+call load_gdt
+
+cli
+lgdt [gdtr]
+mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
+or eax, 1        ; set bit 0 (the PE bit, “Protectgiion Enable”)
+mov cr0, eax     ; write it back into CR0
+jmp 0x08:flush 
+
+
+
 
 a20_activate:
 in al, 0x92                   ;reads the byte from the system control a
 or al, 2                      ;changes bit 1 to activate a20
 out 0x92, al                  ;writes the saved changes back to the byte
-test al,0x02                  ;checks the byte to see if its 0 or 1
-jz print0                     ;activates if the byte is 0
-jnz print                     ;activates if the byte is 1
+ret
 
-print:
-mov si, output
-.loop1:
-mov al,[si]
-or al,al
-jz .hang
-inc si
-mov ah,0x0E
-int 0x10
-jmp .loop1
-.hang:                       ;loops to halt the program once it finishes reading the message buffer
- jmp load_gdt
-
-  print0:
-mov si, output0
-.loop0:
-mov al,[si]
-inc si
-or al,al
-jz .hang0
-mov ah,0x0E
-int 0x10
-jmp .loop0
-.hang0:                       ;loops to halt the program once it finishes reading the message buffer
- jmp $
-
-  msg db "BOOT KITTY",0x0D,0x0A,0 
-  output db "A20 gate activated",0x0D,0x0A,0
-  output0 db "A20 gate not activated",0
 
 load_gdt:
+    mov ah, 0x00
+    mov al, 0x03
+    int 0x10
+    ret
+
+
+
   gdt_start:
   dq 0x0000000000000000
   
@@ -78,34 +65,37 @@ load_gdt:
     mov al, 0x03       ; Mode 03h: 80x25 text mode, VGA, 16 colors
     int 0x10           ; Execute the command
 
-    cli
-    lgdt [gdtr]
-    mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
-or eax, 1        ; set bit 0 (the PE bit, “Protectgiion Enable”)
-mov cr0, eax     ; write it back into CR0
-jmp 0x08:protected_mode_entry
+
+
+
+
  [bits 32]
+flush:
+jmp protected_mode_entry
+
 protected_mode_entry:
  mov ax,0x10
  mov ds,ax
  mov es,ax
  mov ss,ax
+ mov esp, 0x90000
 
 mov edi, 0xB8000
-mov si,msgss
+mov ecx,80*25
+mov esi,msgss
 .loop3:
-mov al,[si]
-inc si
+mov al,[esi]
+inc esi
 or al,al
 jz .hang1
-mov ah,0x30
+mov ah,0x0F
 mov [edi], ax
 add edi, 2
 jmp .loop3
 .hang1:
 jmp $
 
-msgss db "32 BIT",0
+msgss db "BOOT KITTY",0
 
 
  times 510 - ($-$$) db 0      ;just padding it to print 0 until it reach 510 bytes the last 2 bytes is for the signature for bios
