@@ -11,8 +11,20 @@ mov sp,0x7C00
 call a20_activate
 call load_gdt
 
+
 cli
 lgdt [gdtr]
+
+
+idt_start:
+times 256 dq 0
+idt_descriptor:
+dw 256 * 8 -1
+dd idt_start
+
+lidt [idt_descriptor]
+
+ret
 mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
 or eax, 1        ; set bit 0 (the PE bit, “Protectgiion Enable”)
 mov cr0, eax     ; write it back into CR0
@@ -74,6 +86,7 @@ flush:
 jmp protected_mode_entry
 
 protected_mode_entry:
+cli
  mov ax,0x10
  mov ds,ax
  mov es,ax
@@ -114,13 +127,12 @@ vga_print:
 
 
 mov edi, 0xB8000
-mov ecx,80*25
 mov [msgss+0],ebx
 mov [msgss+4],edx
 mov [msgss+8],ecx
 mov esi, msgss
 .loop3:
-mov al,msgss
+mov al,[esi]
 inc esi
 or al,al
 jz .hang1
@@ -136,8 +148,7 @@ jmp $
 
 
 
-msgss db 12 dup(0)
-
+  msgss db 13 dup(0),0
 
  times 510 - ($-$$) db 0      ;just padding it to print 0 until it reach 510 bytes the last 2 bytes is for the signature for bios
  dw 0xAA55                    ;this means this is a valid bootloader (non negotiable)
