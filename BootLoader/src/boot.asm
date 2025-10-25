@@ -80,22 +80,63 @@ protected_mode_entry:
  mov ss,ax
  mov esp, 0x90000
 
+ call cpuid_start
+jmp cpuid_test
+
+
+cpuid_start:
+pushfd
+pushfd
+xor dword [esp],0x00200000
+popfd
+pushfd
+ pop eax                              ;eax = modified EFLAGS (ID bit may or may not be inverted)
+    xor eax,[esp]                        ;eax = whichever bits were changed
+    popfd                                ;Restore original EFLAGS
+    and eax,0x00200000                   ;eax = zero if ID bit can't be changed, else non-zero
+    ret
+
+cpuid_test:
+
+test eax,eax
+jz .no_cpuid
+jmp cpuid_ok
+
+.no_cpuid:
+jmp $
+
+cpuid_ok:
+mov eax,0x0
+cpuid
+jmp vga_print
+
+vga_print:
+
+
 mov edi, 0xB8000
 mov ecx,80*25
-mov esi,msgss
+mov [msgss+0],ebx
+mov [msgss+4],edx
+mov [msgss+8],ecx
+mov esi, msgss
 .loop3:
-mov al,[esi]
+mov al,msgss
 inc esi
 or al,al
 jz .hang1
-mov ah,0x0F
+mov ah,0x40
 mov [edi], ax
 add edi, 2
 jmp .loop3
 .hang1:
 jmp $
 
-msgss db "BOOT KITTY",0
+.hang4:
+jmp $
+
+
+
+msgss db 12 dup(0)
 
 
  times 510 - ($-$$) db 0      ;just padding it to print 0 until it reach 510 bytes the last 2 bytes is for the signature for bios
