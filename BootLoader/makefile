@@ -1,30 +1,46 @@
-# Compiler and tools
-NASM = nasm
-QEMU = qemu-system-x86_64
-
-# Directories
-SRC_DIR = src
+# === Paths ===
 BUILD_DIR = build
-
-# Source files
-BOOT_SRC = $(SRC_DIR)/boot.asm
 BOOT_BIN = $(BUILD_DIR)/boot.bin
+STAGE2_BIN = $(BUILD_DIR)/stage2.bin
+IMG = $(BUILD_DIR)/bootloader.img
 
-# Default target
-all: $(BOOT_BIN)
+# === Build rules ===
+all: $(IMG)
 
-# Build bootloader
-$(BOOT_BIN): $(BOOT_SRC)
-	@mkdir -p $(BUILD_DIR)
-	$(NASM) -f bin $< -o $@
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-# Run in QEMU
-run: $(BOOT_BIN)
-	$(QEMU) -drive format=raw,file=$(BOOT_BIN)
+# Assemble bootloader (Stage 1)
+$(BOOT_BIN): src/boot.asm | $(BUILD_DIR)
+	nasm -f bin $< -o $@
 
-# Clean build files
+# Assemble Stage 2
+$(STAGE2_BIN): src/stage2.asm | $(BUILD_DIR)
+	nasm -f bin $< -o $@
+
+# Create final disk image
+$(IMG): $(BOOT_BIN) $(STAGE2_BIN)
+	@echo "🧱 Creating blank disk image..."
+	dd if=/dev/zero of=$(IMG) bs=512 count=10 status=none
+
+	@echo "📀 Writing boot sector..."
+	dd if=$(BOOT_BIN) of=$(IMG) bs=512 count=1 conv=notrunc status=none
+
+	@echo "⚙️  Appending stage2..."
+	dd if=$(STAGE2_BIN) of=$(IMG) bs=512 seek=1 conv=notrunc status=none
+
+	@echo "✅ Image built successfully: $(IMG)"
+
+# === Run in QEMU ===
+run: $(IMG)
+	qemu-system-x86_64 -drive format=raw,file=$(IMG)
+
+# Debug mode (logs interrupts, CPU resets, etc.)
+debug: $(IMG)
+	qemu-system-x86_64 -drive format=raw,file=$(IMG) -d int,cpu_reset -no-reboot -no-shutdown
+
+# === Clean ===
 clean:
 	rm -rf $(BUILD_DIR)
 
-# Phony targets
-.PHONY: all run clean
+.PHONY: all run debug clean
