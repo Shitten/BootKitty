@@ -30,11 +30,9 @@ call load_gdt
 
 
 
-mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
-or eax, 1        ; set bit 0 (the PE bit, “Protectgiion Enable”)
-mov cr0, eax     ; write it back into CR0
 
-jmp 0x08:0x8000   ; jump to stage2
+
+jmp 0x8000   ; jump to stage2
 
 
 a20_activate:
@@ -80,5 +78,3 @@ load_gdt:
 
  times 510 - ($-$$) db 0      ;just padding it to print 0 until it reach 510 bytes the last 2 bytes is for the signature for bios
  dw 0xAA55                    ;this means this is a valid bootloader (non negotiable)
-
-

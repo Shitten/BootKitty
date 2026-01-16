@@ -21,7 +21,7 @@ $(STAGE2_BIN): src/stage2.asm | $(BUILD_DIR)
 # Create final disk image
 $(IMG): $(BOOT_BIN) $(STAGE2_BIN)
 	@echo "🧱 Creating blank disk image..."
-	dd if=/dev/zero of=$(IMG) bs=512 count=10 status=none
+	dd if=/dev/zero of=$(IMG) bs=512 count=20 status=none
 
 	@echo "📀 Writing boot sector..."
 	dd if=$(BOOT_BIN) of=$(IMG) bs=512 count=1 conv=notrunc status=none

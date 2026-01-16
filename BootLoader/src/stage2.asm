@@ -1,4 +1,13 @@
-  [org 0x8000]
+ [org 0x8000]
+ [bits 16]
+
+ cli
+
+mov eax, cr0     ; copy Control Register 0 (CR0) → EAX
+or eax, 1        ; set bit 0 (the PE bit, “Protectgiion Enable”)
+mov cr0, eax     ; write it back into CR0
+jmp 0x08:protected_mode_entry
+
   [bits 32]
 
 
@@ -187,10 +196,8 @@ long_mode_entry:
 
 
 
-    msgss db "LONG MODE COMPLETE",0
+    msgss db "LONG MODE COMPLETE oof",0
     hlt
 
 
   times 512*7 - ($-$$) db 0
-
-    
